@@ -73,16 +73,23 @@ io.on('connection', (socket) => {
 
   // Handle sending messages
   socket.on('sendMessage', async (messageData) => {
-    console.log('Received sendMessage event:', messageData);
+    console.log('📨 Received sendMessage event:', JSON.stringify(messageData, null, 2));
     const { message, username, userId, timestamp, imageUrl, messageType } = messageData;
     const user = users.get(socket.id);
     
-    console.log('Current user for socket:', user);
-    console.log('Total users connected:', users.size);
+    console.log('👤 Current user for socket:', user);
+    console.log('👥 Total users connected:', users.size);
     
     // Use provided username/userId or fallback to stored user
     const finalUsername = username || (user ? user.username : 'Unknown');
     const finalUserId = userId || (user ? user.userId : 'unknown');
+    
+    console.log(`📝 Message from: username="${finalUsername}", userId="${finalUserId}"`);
+    
+    // Validate that we have valid username and userId
+    if (!finalUsername || finalUsername === 'Unknown' || !finalUserId || finalUserId === 'unknown') {
+      console.error('❌ Invalid username or userId:', { finalUsername, finalUserId, originalData: { username, userId }, storedUser: user });
+    }
     
     // Check if it's an image message or text message
     const isImageMessage = imageUrl && messageType === 'image';
@@ -109,13 +116,14 @@ io.on('connection', (socket) => {
     if (db) {
       try {
         const saved = await saveMessage(db, messagePayload);
-        console.log(`Message saved to database (ID: ${saved.id})`);
+        console.log(`✅ Message saved to database for ${finalUsername} (ID: ${saved.id})`);
       } catch (err) {
-        console.error('Error saving message to database:', err);
+        console.error('❌ Error saving message to database:', err.message);
+        console.error('Full error:', err);
         // Continue anyway - message will still be broadcast
       }
     } else {
-      console.warn('Database not initialized, message not saved (but still broadcast)');
+      console.warn('⚠️ Database not initialized, message not saved (but still broadcast)');
     }
     
     // Broadcast message to all connected clients (for private chat)

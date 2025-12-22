@@ -42,18 +42,34 @@ async function saveMessage(db, messageData) {
   const { message, username, userId, timestamp, imageUrl, messageType } = messageData;
   const timestampValue = timestamp || new Date().toISOString();
 
+  // Validate required fields
+  if (!username || !userId) {
+    const error = `Missing required fields: username=${username}, userId=${userId}`;
+    console.error('❌ Error saving message to MongoDB:', error);
+    console.error('Message data received:', JSON.stringify(messageData, null, 2));
+    throw new Error(error);
+  }
+
   try {
     const messageDoc = {
       message: message || null,
-      username: username,
-      userId: userId,
+      username: username.trim(),
+      userId: userId.trim(),
       timestamp: timestampValue,
       imageUrl: imageUrl || null,
       messageType: messageType || 'text',
       createdAt: new Date()
     };
 
+    console.log(`💾 Saving message to MongoDB for user: ${messageDoc.username} (${messageDoc.userId})`);
+    
+    if (!collection) {
+      throw new Error('MongoDB collection not initialized');
+    }
+
     const result = await collection.insertOne(messageDoc);
+    
+    console.log(`✅ Message saved successfully (ID: ${result.insertedId.toString()})`);
     
     // MongoDB returns _id as ObjectId, convert to string for consistency
     return {
@@ -61,7 +77,9 @@ async function saveMessage(db, messageData) {
       ...messageData
     };
   } catch (err) {
-    console.error('Error saving message to MongoDB:', err.message);
+    console.error('❌ Error saving message to MongoDB:', err.message);
+    console.error('Error details:', err);
+    console.error('Message data that failed:', JSON.stringify(messageData, null, 2));
     throw err;
   }
 }
